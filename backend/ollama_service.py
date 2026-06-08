@@ -3,16 +3,20 @@ import requests
 
 def generate_question(role):
 
-    prompt = f"""
-    You are a technical interviewer.
+    prompt = prompt = f"""
+You are a senior technical interviewer.
 
-    Generate exactly ONE interview question for a {role}.
+Generate ONE unique interview question for a {role}.
 
-    Rules:
-    - Return only the question
-    - No explanation
-    - No reasoning
-    """
+Rules:
+- Do not repeat common questions.
+- Cover different topics each time.
+- Return only the question.
+- No numbering.
+- No explanation.
+
+Question:
+"""
 
     response = requests.post(
         "http://localhost:11434/api/generate",
