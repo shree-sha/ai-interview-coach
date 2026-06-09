@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from datetime import datetime
-
-from ollama_service import generate_question
+from pydantic import BaseModel
+from ollama_service import generate_question, evaluate_answer
 from database import engine, SessionLocal
 from models import InterviewHistory, Base
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,15 +18,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class AnswerRequest(BaseModel):
+    question: str
+    answer: str
+
 @app.get("/")
 def home():
     return {"message": "AI Interview Coach Running"}
 
 
 @app.get("/question")
-def question():
-
-    role = "Python Developer"
+def question(role: str):
 
     generated_question = generate_question(role)
 
@@ -44,6 +46,7 @@ def question():
     db.close()
 
     return {
+        "role": role,
         "question": generated_question
     }
 
@@ -59,3 +62,15 @@ def history():
     db.close()
 
     return records
+
+@app.post("/evaluate-answer")
+def evaluate(data: AnswerRequest):
+
+    result = evaluate_answer(
+        data.question,
+        data.answer
+    )
+
+    return {
+        "evaluation": result
+    }  
