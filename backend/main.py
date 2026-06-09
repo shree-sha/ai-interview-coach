@@ -5,10 +5,13 @@ from ollama_service import generate_question, evaluate_answer
 from database import engine, SessionLocal
 from models import InterviewHistory, Base
 from fastapi.middleware.cors import CORSMiddleware
+from auth import router as auth_router
 
 app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
+
+app.include_router(auth_router)
 
 app.add_middleware(
     CORSMiddleware,
