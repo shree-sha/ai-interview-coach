@@ -183,8 +183,20 @@
 }
 
 .eval-text {
-  font-size: 15px;
-  color: #374151;
-  line-height: 1.7;
   white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.8;
+  color: #374151;
+
+  text-align: left;      /* <-- Add this */
+  margin: 0;
+  padding: 0;
+}
+
+pre.eval-text {
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
 }
