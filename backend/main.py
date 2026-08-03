@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from datetime import datetime
 from pydantic import BaseModel
 from ollama_service import generate_question, evaluate_answer
@@ -68,12 +68,14 @@ def history():
 
 @app.post("/evaluate-answer")
 def evaluate(data: AnswerRequest):
-
-    result = evaluate_answer(
-        data.question,
-        data.answer
-    )
+    try:
+        result = evaluate_answer(
+            data.question,
+            data.answer
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail="The AI returned invalid evaluation data. Please try again.") from exc
 
     return {
-        "evaluation": result
-    }  
+        "evaluation": result.model_dump()
+    }
