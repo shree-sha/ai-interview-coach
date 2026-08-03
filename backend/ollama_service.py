@@ -76,7 +76,9 @@ Rules:
 def evaluate_answer(question, answer):
 
     prompt = f"""
-You are a technical interviewer.
+You are an AI Interview Coach.
+
+Evaluate the candidate's answer.
 
 Question:
 {question}
@@ -84,13 +86,39 @@ Question:
 Candidate Answer:
 {answer}
 
-Evaluate the answer.
+Scoring Guidelines:
+- 0-20 : No understanding or "I don't know"
+- 21-40 : Very basic understanding
+- 41-60 : Partial understanding
+- 61-80 : Good understanding
+- 81-100 : Excellent understanding
 
-Return exactly:
+Return your response in EXACTLY this format:
 
-Score: <0-100>
+Score:
+<number only>
 
-Feedback: <short feedback>
+Strengths:
+- point 1
+- point 2
+
+Areas for Improvement:
+- point 1
+- point 2
+
+Suggestions:
+- point 1
+- point 2
+
+Rules:
+- Be encouraging.
+- Be concise.
+- Maximum 2 points per section.
+- Do NOT ask follow-up questions.
+- Do NOT add introductions.
+- Do NOT add conclusions.
+- Do NOT say "Would you like..."
+- End your response after the Suggestions section.
 """
 
     response = requests.post(
