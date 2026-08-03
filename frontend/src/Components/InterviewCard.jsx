@@ -48,7 +48,7 @@ export default function InterviewCard({ role, question, answer, evaluation, load
               <div className="score-circle" style={{ borderColor: scoreColor, color: scoreColor }}>{score}%</div>
             </div>
           )}
-          <p className="eval-text">{evaluation}</p>
+          <pre className="eval-text">{evaluation}</pre>
         </div>
       )}
     </div>
