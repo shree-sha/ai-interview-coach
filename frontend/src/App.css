@@ -48,7 +48,7 @@ body { min-width: 320px; }
 .btn-success { background: linear-gradient(135deg, #10b981, #059669); }
 .btn:not(:disabled):hover { box-shadow: 0 8px 18px rgba(49, 46, 129, .18); }
 
-.question-box { padding: 16px 20px; border-left: 4px solid #6366f1; border-radius: 8px; background: #f0f4ff; }
+.question-box { padding: 16px 20px; border-left: 4px solid #6366f1; border-radius: 8px; background: #f0f4ff; text-align: left; }
 .question-label, .eyebrow { color: #5865c9; font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
 .question-text { margin-top: 8px; color: #27304a; font-size: 16px; line-height: 1.6; }
 
@@ -93,7 +93,7 @@ body { min-width: 320px; }
 .feedback-section-improvements .feedback-item-marker { background: #ffedc6; color: #a85605; }
 .feedback-empty { margin-top: 14px; color: #657185; font-size: 13px; font-style: italic; line-height: 1.45; }
 
-.ideal-answer { padding: 20px; border: 1px solid #d9def7; border-radius: 10px; background: #f2f4ff; }
+.ideal-answer { padding: 20px; border: 1px solid #d9def7; border-radius: 10px; background: #f2f4ff; text-align: left; }
 .ideal-answer-heading { color: #313b95; }
 .ideal-answer-heading span { color: #646fe2; font-size: 17px; }
 .ideal-answer p { margin-top: 10px; color: #35405b; font-size: 14px; line-height: 1.65; white-space: pre-wrap; }

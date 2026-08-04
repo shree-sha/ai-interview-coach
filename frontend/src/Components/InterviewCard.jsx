@@ -28,7 +28,9 @@ function FeedbackList({ title, items, type }) {
           ))}
         </ul>
       ) : (
-        <p className="feedback-empty">No feedback was provided for this area.</p>
+        <p className="feedback-empty">
+          {type === "strengths" ? "No strengths were identified." : "No feedback was provided for this area."}
+        </p>
       )}
     </section>
   );
