@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from datetime import datetime
+import logging
 from pydantic import BaseModel
 from ollama_service import generate_question, evaluate_answer
 from database import engine, SessionLocal
@@ -8,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from auth import router as auth_router
 
 app = FastAPI()
+logger = logging.getLogger(__name__)
 
 Base.metadata.create_all(bind=engine)
 
@@ -74,6 +76,7 @@ def evaluate(data: AnswerRequest):
             data.answer
         )
     except ValueError as exc:
+        logger.exception("Ollama returned an unusable evaluation response: %s", exc)
         raise HTTPException(status_code=502, detail="The AI returned invalid evaluation data. Please try again.") from exc
 
     return {

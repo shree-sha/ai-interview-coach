@@ -4,20 +4,26 @@ from typing import Literal
 
 import requests
 from pydantic import BaseModel, Field, ValidationError, field_validator
+from config import OLLAMA_GENERATE_URL, OLLAMA_MODEL, OLLAMA_STREAM
 
 
 class EvaluationResult(BaseModel):
     """The validated feedback contract returned by the evaluation endpoint."""
 
     score: int = Field(ge=0, le=100)
-    strengths: list[str] = Field(min_length=1, max_length=2)
+    strengths: list[str] = Field(default_factory=list, max_length=2)
     improvements: list[str] = Field(min_length=1, max_length=2)
     ideal_answer: str = Field(min_length=1)
     confidence: Literal["Low", "Medium", "High"]
 
-    @field_validator("strengths", "improvements")
+    @field_validator("strengths")
     @classmethod
-    def clean_feedback_items(cls, items: list[str]) -> list[str]:
+    def clean_strengths(cls, items: list[str]) -> list[str]:
+        return [item.strip() for item in items if isinstance(item, str) and item.strip()]
+
+    @field_validator("improvements")
+    @classmethod
+    def clean_improvements(cls, items: list[str]) -> list[str]:
         cleaned_items = [item.strip() for item in items if isinstance(item, str) and item.strip()]
         if not cleaned_items:
             raise ValueError("must contain at least one non-empty item")
@@ -93,11 +99,11 @@ Rules:
 """
 
     response = requests.post(
-        "http://localhost:11434/api/generate",
+        OLLAMA_GENERATE_URL,
         json={
-            "model": "gemma3:4b",
+            "model": OLLAMA_MODEL,
             "prompt": prompt,
-            "stream": False
+            "stream": OLLAMA_STREAM
         }
     )
 
@@ -122,12 +128,50 @@ def _parse_evaluation_response(response_text: str) -> EvaluationResult:
         raise ValueError("Ollama returned an invalid evaluation schema") from exc
 
 
+def _request_evaluation(prompt: str) -> EvaluationResult:
+    """Ask Ollama for feedback constrained by the Pydantic JSON schema."""
+    response = requests.post(
+        OLLAMA_GENERATE_URL,
+        json={
+            "model": OLLAMA_MODEL,
+            "prompt": prompt,
+            "format": EvaluationResult.model_json_schema(),
+            "stream": OLLAMA_STREAM
+        }
+    )
+    response.raise_for_status()
+    return _parse_evaluation_response(response.json()["response"])
+
+
 def evaluate_answer(question, answer):
+    answer_text = answer.strip().lower()
+
+    invalid_answers = {
+        "",
+        "na",
+        "n/a",
+        "i don't know",
+        "dont know",
+        "idk",
+        "...",
+        "-"
+    }
+
+    is_non_attempt = answer_text in invalid_answers
+    non_attempt_instructions = """
+The candidate did not attempt the question. You must return:
+
+- a score from 0 to 20;
+- an empty strengths array: [];
+- one or two improvements, including \"Attempt the question even if you are unsure.\";
+- a detailed ideal answer for this specific question; and
+- High confidence.
+""" if is_non_attempt else ""
 
     prompt = f"""
-You are an AI Interview Coach.
+You are a Senior Technical Interviewer and AI Interview Coach.
 
-Evaluate the candidate's answer.
+Your job is to evaluate the candidate's answer to a technical interview question.
 
 Question:
 {question}
@@ -135,43 +179,95 @@ Question:
 Candidate Answer:
 {answer}
 
-Scoring Guidelines:
-- 0-20 : No understanding or "I don't know"
-- 21-40 : Very basic understanding
-- 41-60 : Partial understanding
-- 61-80 : Good understanding
-- 81-100 : Excellent understanding
+Evaluate ONLY what the candidate actually wrote.
 
-Return ONLY a valid JSON object. Do not use Markdown code fences or include any text before or after the JSON.
+Scoring Rubric
 
-Use exactly this schema:
+0-20
+No meaningful attempt or no technical content.
+
+21-40
+Very limited understanding with major misconceptions.
+
+41-60
+Partial understanding but missing important concepts.
+
+61-80
+Good understanding with minor mistakes or missing details.
+
+81-100
+Excellent, technically accurate, well-explained answer.
+
+Evaluation Rules
+
+- Evaluate only the candidate's answer.
+- Never invent knowledge or strengths.
+- Every strength must be directly supported by the candidate's answer.
+- Do not praise concepts that are not mentioned.
+- Be objective and fair.
+
+If the answer is empty, "NA", "N/A", "I don't know", "IDK", "...", or contains no meaningful technical content:
+
+- Score must be between 0 and 20.
+- Confidence must be High.
+- Explain that no meaningful answer was provided.
+- Do not fabricate strengths.
+- Encourage the candidate to attempt the question.
+
+{non_attempt_instructions}
+
+For the ideal_answer:
+
+- Write the answer that an excellent interview candidate would give.
+- Keep it between 120 and 250 words.
+- Explain the solution clearly.
+- Mention important concepts.
+- Do not include code blocks or code snippets; explain any code-related details in plain prose.
+- Explain why the solution works.
+- Independently verify every technical claim before returning it. Do not repeat an incorrect claim from the candidate's answer.
+- State the exact time and space complexity for each algorithm discussed; do not give two approaches the same complexity unless that is correct.
+- Clearly distinguish average/expected performance from worst-case performance and explain relevant trade-offs.
+- Recommend one approach when the question asks for a choice, and justify that recommendation.
+- Do not describe an algorithm as in-place unless it genuinely uses O(1) auxiliary space in its standard implementation.
+- Do not criticize the candidate in this section.
+- The ideal answer should teach the concept, not just summarize it.
+
+Return ONLY valid JSON.
+
+The JSON schema is:
+
 {{
   "score": 82,
-  "strengths": ["Explained the algorithm clearly", "Used appropriate terminology"],
-  "improvements": ["Discuss time complexity", "Handle edge cases"],
-  "ideal_answer": "A concise, technically correct answer that covers the key points.",
+  "strengths": [],
+  "improvements": [
+    "..."
+  ],
+  "ideal_answer": "...",
   "confidence": "Medium"
 }}
 
-Rules:
-- Be encouraging.
-- Be concise.
-- score must be an integer from 0 to 100.
-- strengths and improvements must each contain 1 or 2 short strings.
-- ideal_answer must be a short, direct model answer, not a critique.
-- confidence must be exactly one of: Low, Medium, High.
-- Do NOT ask follow-up questions.
+Rules for JSON:
+
+- score must be an integer between 0 and 100.
+- strengths must contain 0-2 short bullet points. Use an empty array when there are no supported strengths.
+- improvements must contain 1-2 short bullet points.
+- ideal_answer must be a detailed model answer.
+- confidence must be exactly one of:
+  "Low"
+  "Medium"
+  "High"
+
+Do not return Markdown.
+Do not wrap JSON in code fences.
+Return only the JSON object.
 """
 
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
-            "model": "gemma3:4b",
-            "prompt": prompt,
-            "format": "json",
-            "stream": False
-        }
-    )
+    try:
+        return _request_evaluation(prompt)
+    except ValueError:
+        retry_prompt = f"""{prompt}
 
-    response.raise_for_status()
-    return _parse_evaluation_response(response.json()["response"])
+Your previous response could not be parsed as JSON. Generate the evaluation again.
+Return one JSON object that exactly matches the supplied schema. Ensure all text values are valid JSON strings.
+"""
+        return _request_evaluation(retry_prompt)
