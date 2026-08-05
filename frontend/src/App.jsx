@@ -6,7 +6,7 @@ import "./App.css";
 
 function App() {
   const { user, login, register, logout } = useAuth();
-  const interview = useInterview();
+  const interview = useInterview(user);
 
   return (
     <div className="app-container">
