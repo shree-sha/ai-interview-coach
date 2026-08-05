@@ -5,12 +5,13 @@ export const generateQuestion = async (role) => {
   return res.json();
 };
 
-export const evaluateAnswer = async (question, answer) => {
+export const evaluateAnswer = async (question, answer, metadata, userId) => {
   const res = await fetch(`${API_BASE}/evaluate-answer`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, answer }),
+    headers: { "Content-Type": "application/json", "X-User-Id": String(userId) },
+    body: JSON.stringify({ question, answer, ...metadata }),
   });
+  if (!res.ok) throw new Error("Evaluation failed");
   return res.json();
 };
 

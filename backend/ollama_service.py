@@ -76,11 +76,14 @@ TOPICS = {
 }
 
 
-def generate_question(role):
+def select_topic(role: str) -> str:
+    """Choose a supported topic for a role when the caller did not specify one."""
+    return random.choice(TOPICS.get(role, ["General"]))
 
-    topic = random.choice(
-        TOPICS.get(role, ["General"])
-    )
+
+def generate_question(role: str, topic: str | None = None, difficulty: str = "Medium") -> str:
+    """Generate one focused question using the supplied interview metadata."""
+    topic = topic or select_topic(role)
 
     print(f"Role: {role}")
     print(f"Topic Selected: {topic}")
@@ -90,6 +93,7 @@ You are a senior technical interviewer.
 
 Generate ONE interview question for a {role}
 on the topic: {topic}.
+Difficulty: {difficulty}.
 
 Rules:
 - Return only the question.
@@ -141,6 +145,17 @@ def _request_evaluation(prompt: str) -> EvaluationResult:
     )
     response.raise_for_status()
     return _parse_evaluation_response(response.json()["response"])
+
+
+def _validate_feedback_completeness(
+    result: EvaluationResult, *, is_non_attempt: bool
+) -> EvaluationResult:
+    """Reject incomplete feedback before it reaches the UI or persistence layer."""
+    if not is_non_attempt and not result.strengths:
+        raise ValueError(
+            "Ollama omitted evidence-based strengths for a meaningful answer"
+        )
+    return result
 
 
 def evaluate_answer(question, answer):
@@ -205,6 +220,8 @@ Evaluation Rules
 - Every strength must be directly supported by the candidate's answer.
 - Do not praise concepts that are not mentioned.
 - Be objective and fair.
+- For every meaningful attempt, provide one or two specific strengths. Use an empty
+  strengths array only when the candidate made no meaningful attempt.
 
 If the answer is empty, "NA", "N/A", "I don't know", "IDK", "...", or contains no meaningful technical content:
 
@@ -263,11 +280,20 @@ Return only the JSON object.
 """
 
     try:
-        return _request_evaluation(prompt)
+        result = _request_evaluation(prompt)
+        return _validate_feedback_completeness(
+            result, is_non_attempt=is_non_attempt
+        )
     except ValueError:
         retry_prompt = f"""{prompt}
 
-Your previous response could not be parsed as JSON. Generate the evaluation again.
+Your previous response was incomplete or could not be parsed. Generate the evaluation again.
+For a meaningful candidate answer, strengths must include one or two concrete points
+that are explicitly supported by the answer. Do not use an empty strengths array
+unless the candidate made no meaningful attempt.
 Return one JSON object that exactly matches the supplied schema. Ensure all text values are valid JSON strings.
 """
-        return _request_evaluation(retry_prompt)
+        result = _request_evaluation(retry_prompt)
+        return _validate_feedback_completeness(
+            result, is_non_attempt=is_non_attempt
+        )
