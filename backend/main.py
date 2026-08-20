@@ -11,16 +11,17 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from auth import router as auth_router
-from database import Base, SessionLocal, engine
+from database import Base, SessionLocal, engine, migrate_schema
 from models import InterviewAttempt, User
 from ollama_service import evaluate_answer, generate_question, select_topic
 
 app = FastAPI()
 logger = logging.getLogger(__name__)
 
-# SQLite has no migration runner in this project. create_all safely creates the
-# new interview_attempts table without changing existing tables or records.
+# SQLite has no migration runner in this project, so apply the small compatibility
+# migration after creating any tables that do not exist yet.
 Base.metadata.create_all(bind=engine)
+migrate_schema()
 
 app.include_router(auth_router)
 

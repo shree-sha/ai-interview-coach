@@ -1,25 +1,68 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./Header.css";
 
-export default function Header({ user, onLogin, onRegister, onLogout }) {
-  const [showModal, setShowModal] = useState(false);
-  const [isRegister, setIsRegister] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+export default function Header({
+  user,
+  onLogin,
+  onRegister,
+  onLogout,
+  isModalOpen = false,
+  onCloseModal,
+  defaultMode = "login",
+}) {
+  const [showModal, setShowModal] = useState(Boolean(isModalOpen));
+  const [isRegister, setIsRegister] = useState(defaultMode === "register");
+  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setShowModal(Boolean(isModalOpen));
+  }, [isModalOpen]);
+
+  useEffect(() => {
+    setIsRegister(defaultMode === "register");
+  }, [defaultMode]);
+
+  const resetForm = () => {
+    setForm({ name: "", email: "", password: "", confirmPassword: "" });
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setError("");
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    resetForm();
+    onCloseModal?.();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (isRegister) {
+      if (!form.name.trim()) {
+        setError("Please enter your full name.");
+        return;
+      }
+      if (form.password !== form.confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
+    }
+
     try {
       if (isRegister) {
-        await onRegister(form.name, form.email, form.password);
+        await onRegister(form.name.trim(), form.email.trim(), form.password);
       } else {
-        await onLogin(form.email, form.password);
+        await onLogin(form.email.trim(), form.password);
       }
-      setShowModal(false);
-      setForm({ name: "", email: "", password: "" });
-    } catch {
-      setError("Invalid credentials. Please try again.");
+      closeModal();
+    } catch (err) {
+      const msg = err?.response?.data?.detail || err?.message || "Please try again.";
+      setError(msg.includes("already") ? "This email is already registered. Please log in instead." : "Invalid credentials. Please try again.");
     }
   };
 
@@ -31,10 +74,19 @@ export default function Header({ user, onLogin, onRegister, onLogout }) {
           {user ? (
             <>
               <span className="header-username">👤 {user.name}</span>
-              <button className="btn-logout" onClick={onLogout}>Logout</button>
+              <button className="btn-logout" type="button" onClick={onLogout}>Logout</button>
             </>
           ) : (
-            <button className="btn-login-icon" onClick={() => setShowModal(true)} title="Sign In">
+            <button
+              className="btn-login-icon"
+              type="button"
+              onClick={() => {
+                setIsRegister(false);
+                setShowModal(true);
+                resetForm();
+              }}
+              title="Sign In"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>
@@ -46,29 +98,115 @@ export default function Header({ user, onLogin, onRegister, onLogout }) {
       </header>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
-            <h2>{isRegister ? "Create Account" : "Sign In"}</h2>
-            <form onSubmit={handleSubmit}>
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal auth-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" type="button" onClick={closeModal} aria-label="Close login modal">✕</button>
+            <div className="auth-header">
+              <span className="auth-badge">{isRegister ? "Create account" : "Welcome back"}</span>
+              <h2>{isRegister ? "Create your account" : "Log in to continue"}</h2>
+              <p>
+                {isRegister
+                  ? "Register to save your learning progress, track interview practice, and unlock personalized coaching."
+                  : "Sign in to save your learning progress and continue your coaching journey."}
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="auth-form">
               {isRegister && (
-                <input className="modal-input" placeholder="Full Name" value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+                <input
+                  className="modal-input"
+                  placeholder="Full name"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                />
               )}
-              <input className="modal-input" type="email" placeholder="Email" value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-              <input className="modal-input" type="password" placeholder="Password" value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+              <input
+                className="modal-input"
+                type="email"
+                placeholder="Email address"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                required
+              />
+              <div className="password-field">
+                <input
+                  className="modal-input"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required
+                />
+                <button
+                  className="password-toggle"
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeIcon /> : <EyeOffIcon />}
+                </button>
+              </div>
+              {isRegister && (
+                <div className="password-field">
+                  <input
+                    className="modal-input"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm password"
+                    value={form.confirmPassword}
+                    onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                    required
+                  />
+                  <button
+                    className="password-toggle"
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                    title={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                  >
+                    {showConfirmPassword ? <EyeIcon /> : <EyeOffIcon />}
+                  </button>
+                </div>
+              )}
               {error && <p className="modal-error">{error}</p>}
-              <button className="btn-submit" type="submit">{isRegister ? "Register" : "Login"}</button>
+              <button className="btn-submit" type="submit">{isRegister ? "Create account" : "Login"}</button>
             </form>
+
             <p className="modal-toggle">
-              {isRegister ? "Already have an account?" : "Don't have an account?"}
-              <span onClick={() => { setIsRegister(!isRegister); setError(""); }}> {isRegister ? "Sign In" : "Register"}</span>
+              {isRegister ? "Already have an account?" : "Need an account?"}
+              <span
+                onClick={() => {
+                  setIsRegister(!isRegister);
+                  setError("");
+                }}
+              >
+                {isRegister ? " Sign In" : " Register"}
+              </span>
             </p>
           </div>
         </div>
       )}
     </>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m3 3 18 18" />
+      <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+      <path d="M9.9 4.2A10.5 10.5 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-3.1 4.4" />
+      <path d="M6.6 6.6C3.7 8.4 2 12 2 12s3.5 8 10 8a10.5 10.5 0 0 0 3.1-.5" />
+    </svg>
   );
 }

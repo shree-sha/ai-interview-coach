@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { generateQuestion, evaluateAnswer } from "../Services/api";
 
-export function useInterview(user) {
+export function useInterview(user, options = {}) {
+  const { onRequireAuth } = options;
   const [role, setRole] = useState("Python Developer");
   const [topic, setTopic] = useState("General");
   const [difficulty, setDifficulty] = useState("Medium");
@@ -36,7 +37,11 @@ export function useInterview(user) {
 
   const handleSubmit = async () => {
     if (!answer.trim()) return alert("Please write your answer first.");
-    if (!user?.id) return alert("Please log in to save and evaluate your interview.");
+    if (!user?.id) {
+      alert("Please log in first to save your learning progress, track your practice, and receive personalized feedback.");
+      onRequireAuth?.();
+      return;
+    }
     setEvaluating(true);
     try {
       const data = await evaluateAnswer(question, answer, { role, topic, difficulty }, user.id);
