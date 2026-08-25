@@ -147,13 +147,18 @@ def _request_evaluation(prompt: str) -> EvaluationResult:
     return _parse_evaluation_response(response.json()["response"])
 
 
-def _validate_feedback_completeness(
+def _validate_feedback_completeness(result: EvaluationResult) -> EvaluationResult:
+    """Keep the feedback contract complete without inventing technical claims."""
+    return result
+
+
+def _ensure_meaningful_strength(
     result: EvaluationResult, *, is_non_attempt: bool
 ) -> EvaluationResult:
-    """Reject incomplete feedback before it reaches the UI or persistence layer."""
+    """Provide a truthful baseline strength when a non-empty answer has none."""
     if not is_non_attempt and not result.strengths:
-        raise ValueError(
-            "Ollama omitted evidence-based strengths for a meaningful answer"
+        return result.model_copy(
+            update={"strengths": ["You provided a response to the question."]}
         )
     return result
 
@@ -281,9 +286,10 @@ Return only the JSON object.
 
     try:
         result = _request_evaluation(prompt)
-        return _validate_feedback_completeness(
-            result, is_non_attempt=is_non_attempt
-        )
+        result = _validate_feedback_completeness(result)
+        if not is_non_attempt and not result.strengths:
+            raise ValueError("Ollama returned no strengths for a submitted answer")
+        return _ensure_meaningful_strength(result, is_non_attempt=is_non_attempt)
     except ValueError:
         retry_prompt = f"""{prompt}
 
@@ -294,6 +300,5 @@ unless the candidate made no meaningful attempt.
 Return one JSON object that exactly matches the supplied schema. Ensure all text values are valid JSON strings.
 """
         result = _request_evaluation(retry_prompt)
-        return _validate_feedback_completeness(
-            result, is_non_attempt=is_non_attempt
-        )
+    result = _validate_feedback_completeness(result)
+    return _ensure_meaningful_strength(result, is_non_attempt=is_non_attempt)

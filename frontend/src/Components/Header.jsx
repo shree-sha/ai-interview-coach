@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
 import "./Header.css";
+import { authStrings } from "../constants/strings";
+import {
+  isValidEmail,
+  isValidPassword,
+  validateConfirmPassword,
+  validateEmail,
+  validatePassword,
+} from "../validation/authValidation";
 
 export default function Header({
   user,
@@ -16,6 +24,7 @@ export default function Header({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     setShowModal(Boolean(isModalOpen));
@@ -30,6 +39,7 @@ export default function Header({
     setShowPassword(false);
     setShowConfirmPassword(false);
     setError("");
+    setFieldErrors({});
   };
 
   const closeModal = () => {
@@ -42,15 +52,23 @@ export default function Header({
     e.preventDefault();
     setError("");
 
+    const nextFieldErrors = {};
+    if (!isValidEmail(form.email)) nextFieldErrors.email = authStrings.emailInvalid;
+    if (!isValidPassword(form.password)) nextFieldErrors.password = authStrings.passwordTooShort;
+
     if (isRegister) {
       if (!form.name.trim()) {
-        setError("Please enter your full name.");
+        setError(authStrings.fullNameRequired);
         return;
       }
       if (form.password !== form.confirmPassword) {
-        setError("Passwords do not match.");
-        return;
+        nextFieldErrors.confirmPassword = authStrings.passwordsDoNotMatch;
       }
+    }
+
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      return;
     }
 
     try {
@@ -61,20 +79,20 @@ export default function Header({
       }
       closeModal();
     } catch (err) {
-      const msg = err?.response?.data?.detail || err?.message || "Please try again.";
-      setError(msg.includes("already") ? "This email is already registered. Please log in instead." : "Invalid credentials. Please try again.");
+      const msg = err?.response?.data?.detail || err?.message || authStrings.tryAgain;
+      setError(msg.includes("already") ? authStrings.duplicateEmail : msg);
     }
   };
 
   return (
     <>
       <header className="header">
-        <div className="header-brand">🎯 AI Interview Coach</div>
+        <div className="header-brand">🎯 {authStrings.brand}</div>
         <div className="header-right">
           {user ? (
             <>
               <span className="header-username">👤 {user.name}</span>
-              <button className="btn-logout" type="button" onClick={onLogout}>Logout</button>
+              <button className="btn-logout" type="button" onClick={onLogout}>{authStrings.logout}</button>
             </>
           ) : (
             <button
@@ -85,13 +103,13 @@ export default function Header({
                 setShowModal(true);
                 resetForm();
               }}
-              title="Sign In"
+              title={authStrings.signInTitle}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>
               </svg>
-              <span>Sign In</span>
+              <span>{authStrings.signInTitle}</span>
             </button>
           )}
         </div>
@@ -100,14 +118,14 @@ export default function Header({
       {showModal && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal auth-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" type="button" onClick={closeModal} aria-label="Close login modal">✕</button>
+            <button className="modal-close" type="button" onClick={closeModal} aria-label={authStrings.closeLoginModal}>✕</button>
             <div className="auth-header">
-              <span className="auth-badge">{isRegister ? "Create account" : "Welcome back"}</span>
-              <h2>{isRegister ? "Create your account" : "Log in to continue"}</h2>
+              <span className="auth-badge">{isRegister ? authStrings.createAccountBadge : authStrings.welcomeBackBadge}</span>
+              <h2>{isRegister ? authStrings.createAccountTitle : authStrings.loginTitle}</h2>
               <p>
                 {isRegister
-                  ? "Register to save your learning progress, track interview practice, and unlock personalized coaching."
-                  : "Sign in to save your learning progress and continue your coaching journey."}
+                  ? authStrings.registrationDescription
+                  : authStrings.loginDescription}
               </p>
             </div>
 
@@ -115,7 +133,7 @@ export default function Header({
               {isRegister && (
                 <input
                   className="modal-input"
-                  placeholder="Full name"
+                  placeholder={authStrings.fullName}
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   required
@@ -124,18 +142,35 @@ export default function Header({
               <input
                 className="modal-input"
                 type="email"
-                placeholder="Email address"
+                placeholder={authStrings.email}
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                onChange={(e) => {
+                  const email = e.target.value;
+                  setForm({ ...form, email });
+                  setFieldErrors({ ...fieldErrors, email: email && validateEmail(email) ? authStrings.emailInvalid : "" });
+                }}
+                aria-invalid={Boolean(fieldErrors.email)}
+                aria-describedby={fieldErrors.email ? "email-error" : undefined}
                 required
               />
+              {fieldErrors.email && <p id="email-error" className="field-error">{fieldErrors.email}</p>}
               <div className="password-field">
                 <input
                   className="modal-input"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Password"
+                  placeholder={authStrings.password}
                   value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onChange={(e) => {
+                    const password = e.target.value;
+                    setForm({ ...form, password });
+                    setFieldErrors({
+                      ...fieldErrors,
+                      password: password && validatePassword(password) ? authStrings.passwordTooShort : "",
+                      confirmPassword: form.confirmPassword && validateConfirmPassword(password, form.confirmPassword) ? authStrings.passwordsDoNotMatch : "",
+                    });
+                  }}
+                  aria-invalid={Boolean(fieldErrors.password)}
+                  aria-describedby={fieldErrors.password ? "password-error" : undefined}
                   required
                 />
                 <button
@@ -148,14 +183,21 @@ export default function Header({
                   {showPassword ? <EyeIcon /> : <EyeOffIcon />}
                 </button>
               </div>
+              {fieldErrors.password && <p id="password-error" className="field-error">{fieldErrors.password}</p>}
               {isRegister && (
                 <div className="password-field">
                   <input
                     className="modal-input"
                     type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Confirm password"
+                    placeholder={authStrings.confirmPassword}
                     value={form.confirmPassword}
-                    onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                    onChange={(e) => {
+                      const confirmPassword = e.target.value;
+                      setForm({ ...form, confirmPassword });
+                      setFieldErrors({ ...fieldErrors, confirmPassword: confirmPassword && validateConfirmPassword(form.password, confirmPassword) ? authStrings.passwordsDoNotMatch : "" });
+                    }}
+                    aria-invalid={Boolean(fieldErrors.confirmPassword)}
+                    aria-describedby="confirm-password-error"
                     required
                   />
                   <button
@@ -169,19 +211,20 @@ export default function Header({
                   </button>
                 </div>
               )}
+              {fieldErrors.confirmPassword && <p id="confirm-password-error" className="field-error">{fieldErrors.confirmPassword}</p>}
               {error && <p className="modal-error">{error}</p>}
-              <button className="btn-submit" type="submit">{isRegister ? "Create account" : "Login"}</button>
+              <button className="btn-submit" type="submit">{isRegister ? authStrings.submitRegister : authStrings.submitLogin}</button>
             </form>
 
             <p className="modal-toggle">
-              {isRegister ? "Already have an account?" : "Need an account?"}
+              {isRegister ? authStrings.existingAccount : authStrings.newAccount}
               <span
                 onClick={() => {
                   setIsRegister(!isRegister);
                   setError("");
                 }}
               >
-                {isRegister ? " Sign In" : " Register"}
+                {isRegister ? ` ${authStrings.signIn}` : ` ${authStrings.registerTitle}`}
               </span>
             </p>
           </div>

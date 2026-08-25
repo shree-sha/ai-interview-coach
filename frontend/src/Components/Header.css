@@ -191,6 +191,16 @@
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
 }
 
+.field-error {
+  margin: -6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.field-error {
+  color: #dc2626;
+}
+
 .modal-error {
   color: #dc2626;
   font-size: 13px;
