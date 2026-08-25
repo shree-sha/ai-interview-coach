@@ -5,7 +5,7 @@ from datetime import datetime
 import logging
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from auth import router as auth_router
 from database import Base, SessionLocal, engine, migrate_schema
 from models import InterviewAttempt, User
-from ollama_service import evaluate_answer, generate_question, select_topic
+from ollama_service import assessment_difficulty, evaluate_answer, generate_question, select_topic
 
 app = FastAPI()
 logger = logging.getLogger(__name__)
@@ -111,14 +111,19 @@ def question(
     role: str,
     topic: str | None = None,
     difficulty: str = "Medium",
+    question_number: int = Query(1, ge=1, le=15),
 ):
     """Generate a question without creating a history item until it is evaluated."""
     selected_topic = topic or select_topic(role)
-    generated_question = generate_question(role, selected_topic, difficulty)
+    selected_difficulty = assessment_difficulty(question_number)
+    generated_question = generate_question(
+        role, selected_topic, selected_difficulty, question_number
+    )
     return {
         "role": role,
         "topic": selected_topic,
-        "difficulty": difficulty,
+        "difficulty": selected_difficulty,
+        "question_number": question_number,
         "question": generated_question,
     }
 

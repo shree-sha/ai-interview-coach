@@ -81,9 +81,24 @@ def select_topic(role: str) -> str:
     return random.choice(TOPICS.get(role, ["General"]))
 
 
-def generate_question(role: str, topic: str | None = None, difficulty: str = "Medium") -> str:
+def assessment_difficulty(question_number: int) -> str:
+    if question_number <= 10:
+        return "Easy"
+    if question_number <= 13:
+        return "Medium"
+    return "Hard"
+
+
+def generate_question(
+    role: str,
+    topic: str | None = None,
+    difficulty: str = "Medium",
+    question_number: int | None = None,
+) -> str:
     """Generate one focused question using the supplied interview metadata."""
     topic = topic or select_topic(role)
+    if question_number is not None:
+        difficulty = assessment_difficulty(question_number)
 
     print(f"Role: {role}")
     print(f"Topic Selected: {topic}")
@@ -238,9 +253,11 @@ If the answer is empty, "NA", "N/A", "I don't know", "IDK", "...", or contains n
 
 {non_attempt_instructions}
 
-For the ideal_answer:
+For the ideal_answer field:
 
-- Write the answer that an excellent interview candidate would give.
+- Write the correct reference answer to the exact question shown above, as if an excellent interview candidate were answering it.
+- The answer must directly address every part of that exact question and must not be a generic interview answer or an answer to another question.
+- Use the question's requested role, topic, constraints, and expected output when deciding what is correct.
 - Keep it between 120 and 250 words.
 - Explain the solution clearly.
 - Mention important concepts.
@@ -264,7 +281,7 @@ The JSON schema is:
   "improvements": [
     "..."
   ],
-  "ideal_answer": "...",
+    "ideal_answer": "A correct reference answer to the exact Question above...",
   "confidence": "Medium"
 }}
 
@@ -273,7 +290,8 @@ Rules for JSON:
 - score must be an integer between 0 and 100.
 - strengths must contain 0-2 short bullet points. Use an empty array when there are no supported strengths.
 - improvements must contain 1-2 short bullet points.
-- ideal_answer must be a detailed model answer.
+- ideal_answer must be a detailed reference answer to the exact Question above.
+- ideal_answer must not be generic and must not answer a different question.
 - confidence must be exactly one of:
   "Low"
   "Medium"

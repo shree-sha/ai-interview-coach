@@ -1,7 +1,13 @@
 const API_BASE = "http://127.0.0.1:8000";
 
-export const generateQuestion = async (role) => {
-  const res = await fetch(`${API_BASE}/question?role=${encodeURIComponent(role)}`);
+export const generateQuestion = async (role, questionNumber, difficulty) => {
+  const params = new URLSearchParams({
+    role,
+    question_number: String(questionNumber),
+    difficulty,
+  });
+  const res = await fetch(`${API_BASE}/question?${params}`);
+  if (!res.ok) throw new Error("Question generation failed");
   return res.json();
 };
 

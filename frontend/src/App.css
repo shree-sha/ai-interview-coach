@@ -46,7 +46,11 @@ body { min-width: 320px; }
 .btn:not(:disabled):active { transform: scale(.98); }
 .btn-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
 .btn-success { background: linear-gradient(135deg, #10b981, #059669); }
+.btn-secondary { background: #667085; }
 .btn:not(:disabled):hover { box-shadow: 0 8px 18px rgba(49, 46, 129, .18); }
+
+.assessment-actions { display: flex; gap: 12px; }
+.assessment-actions .btn { flex: 1; }
 
 .question-box { padding: 16px 20px; border-left: 4px solid #6366f1; border-radius: 8px; background: #f0f4ff; text-align: left; }
 .question-label, .eyebrow { color: #5865c9; font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }

@@ -36,7 +36,7 @@ function FeedbackList({ title, items, type }) {
   );
 }
 
-export default function InterviewCard({ role, question, answer, evaluation, loading, evaluating, setAnswer, handleRoleChange, handleGenerate, handleSubmit }) {
+export default function InterviewCard({ role, question, answer, evaluation, loading, evaluating, skipping, difficulty, questionNumber, answeredCount, skippedCount, remainingCount, assessmentComplete, setAnswer, handleRoleChange, handleSubmit, handleSkip }) {
   const feedback = evaluation?.evaluation ?? evaluation;
   const score = Number.isFinite(Number(feedback?.score)) ? Math.max(0, Math.min(100, Number(feedback.score))) : null;
   const state = score === null ? "unrated" : scoreState(score);
@@ -54,9 +54,13 @@ export default function InterviewCard({ role, question, answer, evaluation, load
         </select>
       </div>
 
-      <button className="btn btn-primary" onClick={handleGenerate} disabled={loading}>
-        {loading ? "Generating..." : "Generate Question"}
-      </button>
+      {question && (
+        <section className="question-box" aria-label="Assessment progress">
+          <p className="question-label">Question {questionNumber} / 15</p>
+          <p className="question-label">Difficulty: {difficulty}</p>
+          <p className="question-label">Answered: {answeredCount} | Skipped: {skippedCount} | Remaining: {remainingCount}</p>
+        </section>
+      )}
 
       {question && (
         <>
@@ -68,9 +72,14 @@ export default function InterviewCard({ role, question, answer, evaluation, load
             <label className="label" htmlFor="answer">Your Answer</label>
             <textarea id="answer" className="textarea" value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="Type your answer here..." />
           </div>
-          <button className="btn btn-success" onClick={handleSubmit} disabled={evaluating}>
-            {evaluating ? "Evaluating..." : "Submit Answer"}
-          </button>
+          <div className="assessment-actions">
+            <button type="button" className="btn btn-success" onClick={handleSubmit} disabled={evaluating || Boolean(evaluation)}>
+              {evaluating ? "Evaluating..." : "Submit Answer"}
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={handleSkip} disabled={loading || evaluating || skipping || Boolean(evaluation)}>
+              {skipping ? "Skipping..." : "Skip Question"}
+            </button>
+          </div>
         </>
       )}
 
@@ -101,13 +110,22 @@ export default function InterviewCard({ role, question, answer, evaluation, load
             <FeedbackList title="Areas to Improve" items={feedback.improvements} type="improvements" />
           </div>
 
-          <section className="ideal-answer" aria-labelledby="ideal-answer-title">
+          <section className="ideal-answer" aria-labelledby="answer-title">
             <div className="ideal-answer-heading">
               <span aria-hidden="true">✦</span>
-              <h4 id="ideal-answer-title">Ideal Answer</h4>
+              <h4 id="answer-title">Answer</h4>
             </div>
-            <p>{feedback.ideal_answer || "An ideal answer was not provided for this response."}</p>
+            <p>{feedback.ideal_answer || "A reference answer was not provided for this question."}</p>
           </section>
+        </section>
+      )}
+
+      {assessmentComplete && (
+        <section className="evaluation-box" aria-labelledby="complete-title">
+          <h3 id="complete-title" className="eval-title">Assessment Complete</h3>
+          <p>Answered: {answeredCount}</p>
+          <p>Skipped: {skippedCount}</p>
+          <p>Remaining: {remainingCount}</p>
         </section>
       )}
     </main>
